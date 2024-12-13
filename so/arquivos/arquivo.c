@@ -3,9 +3,27 @@
 #include <string.h>
 #include "arquivo.h"
 
-arquivo_t ler_arquivo(char* nome)
+fpos_t tamanho_arquivo(arquivo_t* arquivo)
 {
-    FILE *arq_ptr;               // Ponteiro para o arquivo
+    if(!arquivo) return 0;
+    fpos_t original = 0;
+    if(fgetpos(arquivo->cabecalho, &original) != 0)
+    {
+        printf("fgetpos() falhou!: %i\n", errno);
+        return 0;
+    }
+    fseek(arquivo->cabecalho, 0, SEEK_SET);
+    fpos_t saida = fseek(arquivo->cabecalho, 0, SEEK_END);
+    ftell(arquivo->cabecalho);
+    if(fsetpos(arquivo->cabecalho, &original) != 0)
+    {
+        printf("fsetpos() falhou!: %i\n", errno);
+    }
+    return original;
+}
+
+arquivo_t ler_arquivo(char* nome)
+{ 
     arquivo_t arquivo;           // Estrutura para armazenar os dados do arquivo
     int n_linhas = 0;            // Contador de linhas
     char buffer[TAMANHO_BUFFER]; // Buffer temporário para leitura de uma linha
@@ -14,16 +32,16 @@ arquivo_t ler_arquivo(char* nome)
     arquivo.dados = NULL;
 
     // Abra o arquivo no modo leitura
-    arq_ptr = fopen(nome, "r");
+    arquivo.cabecalho = fopen(nome, "r");
 
     // Verifique se o arquivo foi aberto corretamente
-    if (arq_ptr == NULL) {
+    if (arquivo.cabecalho == NULL) {
         printf("Arquivo não pode ser aberto!\n");
         exit(EXIT_FAILURE);
     }
 
     // Leia o arquivo linha por linha
-    while (fgets(buffer, TAMANHO_BUFFER, arq_ptr) != NULL) {
+    while (fgets(buffer, TAMANHO_BUFFER, arquivo.cabecalho) != NULL) {
         n_linhas++;
 
         // Realoca o array de ponteiros para armazenar mais uma linha
@@ -31,7 +49,7 @@ arquivo_t ler_arquivo(char* nome)
 
         if (arquivo.dados == NULL) {
             printf("Erro ao alocar memória!\n");
-            fclose(arq_ptr);
+            fclose(arquivo.cabecalho);
             exit(EXIT_FAILURE);
         }
 
@@ -40,13 +58,13 @@ arquivo_t ler_arquivo(char* nome)
 
         if (arquivo.dados[n_linhas - 1] == NULL) {
             printf("Erro ao alocar memória para linha!\n");
-            fclose(arq_ptr);
+            fclose(arquivo.cabecalho);
             exit(EXIT_FAILURE);
         }
     }
 
     // Feche o arquivo
-    fclose(arq_ptr);
+    fclose(arquivo.cabecalho);
 
     // Atualize o número de linhas na estrutura
     arquivo.n_linhas = n_linhas;
